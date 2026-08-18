@@ -1,4 +1,3 @@
-/* PHASE 4: State-history utility added in core.js; existing App history behavior intentionally preserved. */
 // app.js — App container: state, computed values, event handlers, and the
 // top-level render tree. Tab bodies and modals live in tabs/*.js and modals.js;
 // this file wires them together via a shared `tabProps` object.
@@ -10,7 +9,6 @@ var {
   useMemo,
   useRef
 } = React;
-var { STORAGE_KEY, loadStoredData, persistData, rowsToCsv, downloadTextFile, hashPin, advanceRecurringDate, makeId } = window.AleemFinCore;
 var hapticFeedback = function(duration) {
   try {
     if (window.__aleemFinHapticsEnabled === false) return;
@@ -168,7 +166,7 @@ var SwipeRow = ({ children, onEdit, onDelete, editLabel = "Edit", deleteLabel = 
   );
 };
 window.SwipeRow = SwipeRow;
-var ACCOUNT_COLORS = window.AleemFinShared.ACCOUNT_COLORS;
+var ACCOUNT_COLORS = ["#1DBF73", "#3B82F6", "#6366F1", "#F59E0B", "#8B5CF6", "#EF5DA8", "#14B8A6", "#F97316"];
 var toLocalISO = d => {
   const off = d.getTimezoneOffset();
   const local = new Date(d.getTime() - off * 6e4);
@@ -397,6 +395,17 @@ const requestNotificationPermission = async () => {
 window.__aleemFinAuthenticateBiometric = authenticateBiometric;
 window.__aleemFinRequestNotificationPermission = requestNotificationPermission;
 
+const hashPin = async pin => {
+  const value = String(pin || "");
+  if (window.crypto && window.crypto.subtle) {
+    const data = new TextEncoder().encode(value);
+    const digest = await window.crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(16);
+};
 React.useEffect(() => {
   const onVisibility = () => {
     if (document.visibilityState === "visible" && (settings.pinLockEnabled && settings.pinHash || settings.biometricEnabled)) {
@@ -462,6 +471,17 @@ const [heroFlash, setHeroFlash] = useState(null);
 const [heroWealthHidden, setHeroWealthHidden] = useState(() => { try { return localStorage.getItem("aleemfin_hero_wealth_hidden") === "1"; } catch (_) { return false; } });
 const toggleHeroWealthVisibility = () => setHeroWealthHidden(prev => { const next = !prev; try { localStorage.setItem("aleemfin_hero_wealth_hidden", next ? "1" : "0"); } catch (_) {} return next; });
 const [currency, setCurrency] = useState(() => settings.defaultCurrency || "AED");
+const STORAGE_KEY = "aleemfin_data_v8";
+const loadStoredData = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed[key]) return parsed[key];
+    }
+  } catch (e) {}
+  return fallback;
+};
 const [exchangeRates, setExchangeRates] = useState(() => loadStoredData("rates", {
   AED: 1, USD: 3.67, EUR: 4.28, GBP: 4.96, SAR: 0.98, INR: 0.044, PKR: 0.013, CAD: 2.68, AUD: 2.39
 }));
@@ -566,27 +586,35 @@ const [goals, setGoals] = useState(() => loadStoredData("goals", []));
 const [recurringItems, setRecurringItems] = useState(() => loadStoredData("recurringItems", []));
 const [storageError, setStorageError] = useState(false);
 const persistAllData = (newAccs, newAsts, newLoans, newTxns, newRates, newBudgets, newGoals, newRecurringItems) => {
-  const ok = persistData({
-    accounts: newAccs,
-    assets: newAsts,
-    loans: newLoans,
-    transactions: newTxns,
-    rates: newRates || exchangeRates,
-    budgets: newBudgets,
-    goals: newGoals,
-    recurringItems: newRecurringItems
-  }, { budgets, goals, recurringItems });
-  setStorageError(!ok);
+  try {
+    let existing = {};
+    try {
+      existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
+    } catch (e) {}
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      accounts: newAccs,
+      assets: newAsts,
+      loans: newLoans,
+      transactions: newTxns,
+      rates: newRates || exchangeRates,
+      budgets: newBudgets === void 0 ? Array.isArray(existing.budgets) ? existing.budgets : budgets : newBudgets,
+      goals: newGoals === void 0 ? Array.isArray(existing.goals) ? existing.goals : goals : newGoals,
+      recurringItems: newRecurringItems === void 0 ? Array.isArray(existing.recurringItems) ? existing.recurringItems : recurringItems : newRecurringItems
+    }));
+    if (storageError) setStorageError(false);
+  } catch (e) {
+    setStorageError(true);
+  }
 };
 const [ratesModalOpen, setRatesModalOpen] = useState(false);
-const [rateForm, setRateForm] = useState(() => Object.fromEntries(window.AleemFinShared.RATE_CURRENCY_CODES.map(k => [k, String(exchangeRates[k] || "")] )));
+const [rateForm, setRateForm] = useState(() => Object.fromEntries(["USD","EUR","GBP","SAR","INR","PKR","CAD","AUD"].map(k => [k, String(exchangeRates[k] || "")] )));
 const openRatesModal = () => {
-  setRateForm(Object.fromEntries(window.AleemFinShared.RATE_CURRENCY_CODES.map(k => [k, String(exchangeRates[k] || "")] )));
+  setRateForm(Object.fromEntries(["USD","EUR","GBP","SAR","INR","PKR","CAD","AUD"].map(k => [k, String(exchangeRates[k] || "")] )));
   setRatesModalOpen(true);
 };
 const saveRates = e => {
   e.preventDefault();
-  const supported = window.AleemFinShared.RATE_CURRENCY_CODES;
+  const supported = ["USD","EUR","GBP","SAR","INR","PKR","CAD","AUD"];
   const newRates = { AED: 1 };
   for (const code of supported) { const value = Number(rateForm[code]); if (!value || value <= 0) { alert(`Please enter a valid ${code} rate.`); return; } newRates[code] = value; }
   flashHeroForRateUpdate(newRates);
@@ -665,22 +693,24 @@ const undoLoanMovement = (loanId, movementId, legacyTransactionId) => {
   saveStateToHistory();
 
   const movementAmount = Number(movement.amount || 0);
-  const updatedLoans = loans.map(l => {
-    if (l.id !== loanId) return l;
-    if (movement.kind === "repayment") {
-      return {
-        ...l,
-        repaid: Math.max(0, (l.repaid || 0) - movementAmount),
-        movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
-      };
-    }
-    return {
-      ...l,
-      amount: Math.max(0, (l.amount || 0) - movementAmount),
-      repaid: Math.min(l.repaid || 0, Math.max(0, (l.amount || 0) - movementAmount)),
-      movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
-    };
-  });
+  const updatedLoans = window.AleemFinLoanActions
+    ? window.AleemFinLoanActions.removeMovement(loans, loanId, movementId || movement.id, movement.kind, movementAmount)
+    : loans.map(l => {
+        if (l.id !== loanId) return l;
+        if (movement.kind === "repayment") {
+          return {
+            ...l,
+            repaid: Math.max(0, (l.repaid || 0) - movementAmount),
+            movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
+          };
+        }
+        return {
+          ...l,
+          amount: Math.max(0, (l.amount || 0) - movementAmount),
+          repaid: Math.min(l.repaid || 0, Math.max(0, (l.amount || 0) - movementAmount)),
+          movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
+        };
+      });
 
   let updatedAccs = accounts;
   let updatedTxns = transactions;
@@ -864,7 +894,7 @@ const syncLiveExchangeRates = async () => {
     const res = await fetch("https://open.er-api.com/v6/latest/AED");
     const json = await res.json();
     if (!json || !json.rates) throw new Error("bad response");
-    const codes = window.AleemFinShared.RATE_CURRENCY_CODES;
+    const codes = ["USD","EUR","GBP","SAR","INR","PKR","CAD","AUD"];
     const newRates = { AED: 1 };
     codes.forEach(code => { if (json.rates[code]) newRates[code] = 1 / json.rates[code]; });
     if (!newRates.USD || !newRates.EUR) throw new Error("missing rates");
@@ -1302,8 +1332,14 @@ const exportStatement = () => {
       });
     });
   const header = ["Date", "Category", "Description", "Type", "Amount", "Currency", "Account", "Available Balance", "Statement Message"];
-  const csv = rowsToCsv([header, ...rows]);
-  downloadTextFile("\uFEFF" + csv, `aleemfin_statement_${statementAccountId === "all" ? "all-accounts" : (selectedAccounts[0]?.name || "account").replace(/[^a-z0-9]+/gi,"-").toLowerCase()}_${from || "all"}_to_${to || "all"}.csv`, "text/csv;charset=utf-8");
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aleemfin_statement_${statementAccountId === "all" ? "all-accounts" : (selectedAccounts[0]?.name || "account").replace(/[^a-z0-9]+/gi,"-").toLowerCase()}_${from || "all"}_to_${to || "all"}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   setStatementOpen(false);
 };
 const filteredTransactions = useMemo(() => {
@@ -1597,17 +1633,20 @@ const handleRepaymentSubmit = e => {
   const loan = repaymentModalLoan;
   const repayDateVal = repayDate || todayISO();
   const repaymentMovementId = makeId();
-  const updatedLoans = loans.map(l => l.id === loan.id ? {
-    ...l,
-    repaid: (l.repaid || 0) + amt,
-    movements: [...(l.movements || []), {
-      id: repaymentMovementId,
-      kind: "repayment",
-      amount: amt,
-      date: repayDateVal,
-      accountId: repayAccountId || null
-    }]
-  } : l);
+  const repaymentMovement = {
+    id: repaymentMovementId,
+    kind: "repayment",
+    amount: amt,
+    date: repayDateVal,
+    accountId: repayAccountId || null
+  };
+  const updatedLoans = window.AleemFinLoanActions
+    ? window.AleemFinLoanActions.addRepayment(loans, loan.id, repaymentMovement)
+    : loans.map(l => l.id === loan.id ? {
+        ...l,
+        repaid: (l.repaid || 0) + amt,
+        movements: [...(l.movements || []), repaymentMovement]
+      } : l);
   let updatedAccs = accounts;
   let updatedTxns = transactions;
   if (repayAccountId) {
@@ -1799,7 +1838,14 @@ const exportBackup = () => {
     goldHistory,
     settings
   };
-  downloadTextFile(JSON.stringify(data, null, 2), `aleemfin_backup_${todayISO()}.json`, "application/json");
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aleemfin_backup_${todayISO()}.json`;
+  a.click();
 };
 const exportCSV = () => {
   const header = ["Date", "Title", "Type", "Category", "Amount", "Currency", "Account", "To Account", "To Amount", "To Currency"];
@@ -1808,8 +1854,15 @@ const exportCSV = () => {
     const toAcc = t.type === "transfer" ? accounts.find(a2 => a2.id === t.toAccountId) : null;
     return [t.date, t.title, t.type, t.category, t.amount, t.currency, acc ? acc.name : "", toAcc ? toAcc.name : "", t.type === "transfer" ? t.toAmount ?? t.amount : "", t.type === "transfer" ? t.toCurrency || t.currency : ""];
   });
-  const csv = rowsToCsv([header, ...rows]);
-  downloadTextFile(csv, `aleemfin_transactions_${todayISO()}.csv`, "text/csv;charset=utf-8");
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v != null ? v : "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], {
+    type: "text/csv"
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `aleemfin_transactions_${todayISO()}.csv`;
+  a.click();
 };
 const importBackup = e => {
   const file = e.target.files[0];
@@ -1852,6 +1905,26 @@ const importBackup = e => {
 };
 const persistPlanning = (nextBudgets = budgets, nextGoals = goals, nextRecurringItems = recurringItems) => {
   persistAllData(accounts, assets, loans, transactions, exchangeRates, nextBudgets, nextGoals, nextRecurringItems);
+};
+const advanceRecurringDate = (date, frequency) => {
+  const next = new Date(`${date}T12:00:00`);
+  if (frequency === "weekly") {
+    next.setDate(next.getDate() + 7);
+  } else if (frequency === "yearly") {
+    const day = next.getDate();
+    next.setFullYear(next.getFullYear() + 1);
+    if (next.getDate() !== day) next.setDate(0);
+  } else {
+    const day = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + 2, 0);
+    next.setDate(Math.min(day, next.getDate()));
+  }
+  return toLocalISO(next);
+};
+const makeId = (prefix = "") => {
+  const rand = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return prefix ? `${prefix}${rand}` : rand;
 };
 const openBudgetEditor = (budget = null) => {
   setBudgetForm(budget ? {
@@ -2427,7 +2500,14 @@ useEffect(() => {
     React.createElement("button", { onClick: bulkDeleteSelected, className: "selection-toolbar-button selection-toolbar-delete", "aria-label": "Delete selected" }, React.createElement(Icons.IconTrash, { className: "w-4 h-4" }))
   )
 ) : null;
-const dashboardCardOptions = window.AleemFinShared.DASHBOARD_CARD_OPTIONS;
+const dashboardCardOptions = [
+  { id: "accounts", label: "Accounts" }, { id: "vault", label: "Assets" },
+  { id: "loans", label: "Lent" }, { id: "analytics", label: "Month Snapshot" },
+  { id: "planning", label: "Plans" }, { id: "recurring", label: "Upcoming" },
+  { id: "gold", label: "24k Gold Rate" }, { id: "rates", label: "FX Rates" },
+  { id: "gold-performance", label: "Gold Performance" }, { id: "runway", label: "Cash Buffer" },
+  { id: "spending", label: "Spending Pace" }
+];
 const selectedDashboardCardsForSheet = Array.isArray(settings.dashboardCards) && settings.dashboardCards.length <= 4 ? settings.dashboardCards : DEFAULT_SETTINGS.dashboardCards;
 const toggleDashboardCardForSheet = id => {
   if (selectedDashboardCardsForSheet.includes(id)) updateSettings({ dashboardCards: selectedDashboardCardsForSheet.filter(cardId => cardId !== id) });

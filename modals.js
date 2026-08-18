@@ -406,7 +406,7 @@
 
   function RatesModal(props) {
     const { accent, darkMode, inputCls, rateForm, rateSyncMsg, saveRates, setRateForm, setRatesModalOpen, syncLiveExchangeRates, syncingRates } = props;
-    const currencies = window.AleemFinShared.RATE_CURRENCY_OPTIONS;
+    const currencies = [["USD","US Dollar"],["EUR","Euro"],["GBP","Pound"],["SAR","Saudi Riyal"],["INR","Indian Rupee"],["PKR","Pakistani Rupee"],["CAD","Canadian Dollar"],["AUD","Australian Dollar"]];
     return React.createElement("div", { className:"fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm animate-fadeIn" },
       React.createElement("div", { className:`w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-3xl border p-5 shadow-2xl space-y-3 ${darkMode ? "bg-zinc-900 border-zinc-800 text-zinc-100" : "bg-white border-zinc-200 text-zinc-900"}` },
         React.createElement("div", { className:"flex justify-between items-center" }, React.createElement("h3", {className:"font-bold text-sm"},"Exchange Rates"), React.createElement("button",{onClick:()=>setRatesModalOpen(false),className:"p-1 rounded-lg text-zinc-400"},React.createElement(Icons.IconClose,{className:"w-3.5 h-3.5"}))),
