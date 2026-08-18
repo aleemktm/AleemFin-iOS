@@ -69,7 +69,40 @@
   })]).size;
     const dataSizeLabel = dataSize < 1024 ? `${dataSize} bytes` : `${(dataSize / 1024).toFixed(1)} KB`;
     const categories = settings.customCategories || DEFAULT_SETTINGS.customCategories;
-    const dashboardOptions = window.AleemFinShared.DASHBOARD_CARD_OPTIONS;
+    const dashboardOptions = [{
+    id: "accounts",
+    label: "Accounts"
+  }, {
+    id: "vault",
+    label: "Assets"
+  }, {
+    id: "loans",
+    label: "Lent"
+  }, {
+    id: "analytics",
+    label: "Month Snapshot"
+  }, {
+    id: "planning",
+    label: "Plans"
+  }, {
+    id: "recurring",
+    label: "Upcoming"
+  }, {
+    id: "gold",
+    label: "24k Gold Rate"
+  }, {
+    id: "rates",
+    label: "FX Rates"
+  }, {
+    id: "gold-performance",
+    label: "Gold Performance"
+  }, {
+    id: "runway",
+    label: "Cash Buffer"
+  }, {
+    id: "spending",
+    label: "Spending Pace"
+  }];
     const selectedDashboardCards = Array.isArray(settings.dashboardCards) && settings.dashboardCards.length <= 4 ? settings.dashboardCards : DEFAULT_SETTINGS.dashboardCards;
     const toggleDashboardCard = id => {
     if (selectedDashboardCards.includes(id)) updateSettings({
@@ -226,7 +259,7 @@
       });
     },
     className: `${inputCls} w-auto py-2 text-xs font-bold`
-  }, window.AleemFinShared.CURRENCY_REGISTRY.map(item => h("option", {key:item.code, value:item.code}, `${item.code} · ${item.name}`)))))), h(SettingsSection, {
+  }, h("option", {value:"AED"}, "AED · UAE Dirham"), h("option", {value:"USD"}, "USD · US Dollar"), h("option", {value:"EUR"}, "EUR · Euro"), h("option", {value:"GBP"}, "GBP · Pound"), h("option", {value:"SAR"}, "SAR · Saudi Riyal"), h("option", {value:"INR"}, "INR · Indian Rupee"), h("option", {value:"PKR"}, "PKR · Pakistani Rupee"), h("option", {value:"CAD"}, "CAD · Canadian Dollar"), h("option", {value:"AUD"}, "AUD · Australian Dollar"))))), h(SettingsSection, {
     title: "Data & backup"
   }, h("div", {
     className: "space-y-2"

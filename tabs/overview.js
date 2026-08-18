@@ -17,7 +17,16 @@
     const heroValue = settings.heroMetric === "networth" ? netWorthTotal : totalLiquidAED;
     const heroLabel = settings.heroMetric === "networth" ? "Net worth" : "Available wealth";
     const secondaryLabel = settings.heroMetric === "networth" ? "Liquid cash" : "Net worth";
-    const accountColor = window.AleemFinShared.accountColor;
+    const accountColor = acc => {
+      const name = String(acc.name || "").toLowerCase();
+      const type = String(acc.type || "").toLowerCase();
+      if (name.includes("fiverr")) return "#3B82F6";
+      if (name.includes("paypal")) return "#6366F1";
+      if (name.includes("ubl")) return "#F59E0B";
+      if (name.includes("dib")) return "#1DBF73";
+      if (name.includes("cash") || type === "cash") return "#8E8E93";
+      return acc.color || "#1DBF73";
+    };
     const secondaryValue = settings.heroMetric === "networth" ? totalLiquidAED : netWorthTotal;
     const rateText = exchangeRates && exchangeRates.PKR ? (1 / exchangeRates.PKR).toFixed(2) : "—";
 

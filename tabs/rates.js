@@ -5,7 +5,7 @@
     var h = React.createElement;
     var safeSettings = props.settings && typeof props.settings === "object" ? props.settings : {};
     var safeExchange = props.exchangeRates && typeof props.exchangeRates === "object" ? props.exchangeRates : {};
-    var currencies = window.AleemFinShared.CURRENCY_CODES;
+    var currencies = ["AED", "USD", "EUR", "GBP", "SAR", "INR", "PKR", "CAD", "AUD"];
     var base = currencies.indexOf(safeSettings.defaultCurrency) >= 0 ? safeSettings.defaultCurrency : "AED";
     var [amount, setAmount] = React.useState("1");
     var [from, setFrom] = React.useState("USD");
@@ -91,7 +91,7 @@
           )
         ),
         h("form", { onSubmit: saveRates, className: "rates-list" },
-          window.AleemFinShared.RATE_CURRENCY_CODES.map(function (code) {
+          ["USD", "EUR", "GBP", "SAR", "INR", "PKR", "CAD", "AUD"].map(function (code) {
             var displayValue = rateForm[code] == null || rateForm[code] === ""
               ? ""
               : Number(rateForm[code]) / referenceTargetRate;
