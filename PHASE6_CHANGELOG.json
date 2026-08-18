@@ -1,0 +1,95 @@
+{
+  "phase": 6,
+  "title": "Loans extraction foundation",
+  "status": "behavior-preserving",
+  "changes": [
+    "Added schema-preserving loan record helpers to core.js.",
+    "Did not rewrite loan state orchestration or UI.",
+    "Did not alter loan calculations in app.js.",
+    "Did not alter storage or data schema."
+  ],
+  "loan_reference_count": 51,
+  "loan_reference_ranges": [
+    [
+      519,
+      519
+    ],
+    [
+      528,
+      528
+    ],
+    [
+      647,
+      647
+    ],
+    [
+      648,
+      648
+    ],
+    [
+      649,
+      649
+    ],
+    [
+      657,
+      657
+    ],
+    [
+      670,
+      670
+    ],
+    [
+      741,
+      741
+    ],
+    [
+      750,
+      750
+    ],
+    [
+      755,
+      755
+    ],
+    [
+      774,
+      774
+    ],
+    [
+      783,
+      783
+    ],
+    [
+      850,
+      850
+    ],
+    [
+      851,
+      851
+    ],
+    [
+      852,
+      852
+    ],
+    [
+      942,
+      942
+    ],
+    [
+      992,
+      992
+    ],
+    [
+      1052,
+      1052
+    ],
+    [
+      1053,
+      1053
+    ],
+    [
+      1325,
+      1325
+    ]
+  ],
+  "next_safe_boundary": "Extract pure loan actions only after mapping their exact state dependencies."
+}
