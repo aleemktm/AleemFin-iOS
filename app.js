@@ -693,24 +693,22 @@ const undoLoanMovement = (loanId, movementId, legacyTransactionId) => {
   saveStateToHistory();
 
   const movementAmount = Number(movement.amount || 0);
-  const updatedLoans = window.AleemFinLoanActions
-    ? window.AleemFinLoanActions.removeMovement(loans, loanId, movementId || movement.id, movement.kind, movementAmount)
-    : loans.map(l => {
-        if (l.id !== loanId) return l;
-        if (movement.kind === "repayment") {
-          return {
-            ...l,
-            repaid: Math.max(0, (l.repaid || 0) - movementAmount),
-            movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
-          };
-        }
-        return {
-          ...l,
-          amount: Math.max(0, (l.amount || 0) - movementAmount),
-          repaid: Math.min(l.repaid || 0, Math.max(0, (l.amount || 0) - movementAmount)),
-          movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
-        };
-      });
+  const updatedLoans = loans.map(l => {
+    if (l.id !== loanId) return l;
+    if (movement.kind === "repayment") {
+      return {
+        ...l,
+        repaid: Math.max(0, (l.repaid || 0) - movementAmount),
+        movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
+      };
+    }
+    return {
+      ...l,
+      amount: Math.max(0, (l.amount || 0) - movementAmount),
+      repaid: Math.min(l.repaid || 0, Math.max(0, (l.amount || 0) - movementAmount)),
+      movements: (l.movements || []).filter(m => m.id !== movementId && m.id !== movement.id)
+    };
+  });
 
   let updatedAccs = accounts;
   let updatedTxns = transactions;
@@ -1633,20 +1631,17 @@ const handleRepaymentSubmit = e => {
   const loan = repaymentModalLoan;
   const repayDateVal = repayDate || todayISO();
   const repaymentMovementId = makeId();
-  const repaymentMovement = {
-    id: repaymentMovementId,
-    kind: "repayment",
-    amount: amt,
-    date: repayDateVal,
-    accountId: repayAccountId || null
-  };
-  const updatedLoans = window.AleemFinLoanActions
-    ? window.AleemFinLoanActions.addRepayment(loans, loan.id, repaymentMovement)
-    : loans.map(l => l.id === loan.id ? {
-        ...l,
-        repaid: (l.repaid || 0) + amt,
-        movements: [...(l.movements || []), repaymentMovement]
-      } : l);
+  const updatedLoans = loans.map(l => l.id === loan.id ? {
+    ...l,
+    repaid: (l.repaid || 0) + amt,
+    movements: [...(l.movements || []), {
+      id: repaymentMovementId,
+      kind: "repayment",
+      amount: amt,
+      date: repayDateVal,
+      accountId: repayAccountId || null
+    }]
+  } : l);
   let updatedAccs = accounts;
   let updatedTxns = transactions;
   if (repayAccountId) {
