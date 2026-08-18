@@ -9,6 +9,55 @@ var {
   useMemo,
   useRef
 } = React;
+/* Phase 9 — Native iOS shell bridge hardening.
+ * Keeps the PWA fully functional while giving the future Capacitor/Xcode host
+ * one stable bridge for lifecycle, keyboard and status-bar coordination.
+ */
+var aleemFinNativeBridge = (function () {
+  var bridge = {
+    isNative: function () {
+      try { return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform()); } catch (_) { return false; }
+    },
+    post: function (handler, payload) {
+      try {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers[handler]) {
+          window.webkit.messageHandlers[handler].postMessage(payload || {});
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    },
+    syncViewport: function () {
+      try {
+        var vv = window.visualViewport;
+        var height = vv ? vv.height : window.innerHeight;
+        document.documentElement.style.setProperty("--sheet-viewport-height", Math.max(320, height) + "px");
+        document.documentElement.style.setProperty("--keyboard-offset", Math.max(0, window.innerHeight - height) + "px");
+      } catch (_) {}
+    },
+    lifecycle: function (state) { bridge.post("appLifecycle", { state: state }); },
+    keyboard: function (visible, height) { bridge.post("keyboardState", { visible: !!visible, height: Math.max(0, height || 0) }); },
+    statusBar: function (style) { bridge.post("statusBarStyle", { style: style || "dark" }); }
+  };
+  bridge.syncViewport();
+  var sync = function () {
+    bridge.syncViewport();
+    try {
+      var offset = Math.max(0, window.innerHeight - (window.visualViewport ? window.visualViewport.height : window.innerHeight));
+      bridge.keyboard(offset > 80, offset);
+    } catch (_) {}
+  };
+  window.addEventListener("resize", sync, { passive: true });
+  window.addEventListener("orientationchange", function () { setTimeout(sync, 120); }, { passive: true });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", sync, { passive: true });
+  document.addEventListener("visibilitychange", function () { bridge.lifecycle(document.visibilityState); }, false);
+  window.addEventListener("pageshow", function () { bridge.lifecycle("active"); }, false);
+  window.addEventListener("pagehide", function () { bridge.lifecycle("inactive"); }, false);
+  document.documentElement.classList.toggle("aleemfin-native", bridge.isNative());
+  return bridge;
+})();
+window.__aleemFinNativeBridge = aleemFinNativeBridge;
+
 var hapticFeedback = function(duration) {
   try {
     if (window.__aleemFinHapticsEnabled === false) return;
@@ -418,6 +467,7 @@ React.useEffect(() => {
 
 window.__aleemFinSoundEnabled = settings.soundEnabled === true;
 window.__aleemFinHapticsEnabled = settings.hapticsEnabled !== false;
+try { aleemFinNativeBridge.syncViewport(); aleemFinNativeBridge.statusBar(settings.theme === "dark" ? "light" : "dark"); } catch (e) {}
 const safeAccentColor = ["emerald", "teal", "blue", "violet", "amber"].includes(settings.accentColor) ? settings.accentColor : "emerald";
 if (settings.accentColor !== safeAccentColor) {
   try { updateSettings({ accentColor: safeAccentColor }); } catch (e) {}

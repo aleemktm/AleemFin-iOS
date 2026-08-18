@@ -1552,3 +1552,21 @@ html[data-af-accent="amber"] {
 }
 .home-positive, .insight-positive { color: var(--af-green) !important; }
 .home-negative, .insight-negative { color: var(--af-red) !important; }
+
+/* Phase 9 — native iOS shell viewport/lifecycle hardening */
+html.aleemfin-native, html.aleemfin-native body, html.aleemfin-native #root {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+html.aleemfin-native body {
+  overscroll-behavior-y: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html.aleemfin-native input,
+html.aleemfin-native textarea,
+html.aleemfin-native select,
+html.aleemfin-native [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
